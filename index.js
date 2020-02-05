@@ -11,6 +11,14 @@ let express = require("express"),
   server;
 
 
+
+
+
+
+app.use(express.static("public"));
+app.use(morgan("dev"));
+
+
 app.get("/users", (req, res) => {
   UserList.getAll()
     .then(userList => {
@@ -36,19 +44,24 @@ app.get("/wishlists", (req, res) => {
 
 app.get("/wishes", (req, res) => {
   ItemList.getAll()
-    .then(items => {
-      return res.status(200).json(items);
+    .then(wishes => {
+      return res.status(200).json(wishes);
     })
     .catch(error => {
-      console.log(error);
       res.statusMessage = "Hubo un error de conexion con la BD";
       return res.status(500).send();
     });
 });
 
-app.use(express.static("public"));
-app.use(morgan("dev"));
-
+// app.get("/items/sas", (req, res) => {
+//   ItemList.getAll()
+//   .then( result => {
+//     return res.status(200).json(result);
+//   })
+//   .catch( error => {
+//     return res.status(500).send();
+//   });
+// });
 /* 
 ////////////////////// ENDPOINTS START //////////////////////
 */
@@ -90,7 +103,7 @@ app.post('/signIn', jsonParser, (req, res) => {
               };
               // Create token
               let token = jwt.sign(data, "secret", {
-                expiresIn: 60 * 10
+                expiresIn: 60 * 30
               });
 
               return res.status(200).json({ token });
@@ -193,7 +206,7 @@ app.post('/signUp', jsonParser, (req, res) => {
 
               // Encrypt password and adds user to DB
               bcrypt
-                .hash(password, 10)
+                .hash(password, 30)
                 .then(hashedPassword => {
                   // Add hashed password to user
                   newUser.password = hashedPassword;
@@ -205,7 +218,7 @@ app.post('/signUp', jsonParser, (req, res) => {
                       };
                       // Creates token
                       let token = jwt.sign(data, "secret", {
-                        expiresIn: 60 * 10
+                        expiresIn: 60 * 30
                       });
 
                       res.statusMessage = "Usuario agregado a BD";
@@ -307,7 +320,7 @@ app.put(':username/edit', jsonParser, (req, res) => {
           };
           // Create token
           token = jwt.sign(data, "secret", {
-            expiresIn: 60 * 10
+            expiresIn: 60 * 30
           });
           
           res.statusMessage = "Información del usuario actualizada exitosamente";
@@ -354,15 +367,13 @@ app.delete('/:username/unregister', jsonParser, (req, res) => {
     // Delete user from DB
     UserList.delete(usrN)
       .then(deletedUsr => {
-        if(deletedUsr.length == 0){
-          res.statusMessage = "Usuario no encontrado en la BD";
-          return res.status(401).send();
-        }
-        else{
-          res.statusMessage = "Usuario eliminado exitosamente de la BD";
-          return res.status(200).json(deletedUsr);
 
+        if(deletedUsr.deletedCount < 1){
+          res.statusMessage = "Usuario no encontrado en la BD";
+          return res.status(404).send();
         }
+        res.statusMessage = "Usuario eliminado exitosamente de la BD";
+        return res.status(200).json(deletedUsr);
         
       })
       .catch(error => {
@@ -455,7 +466,7 @@ app.post('/:username/newWishlist', jsonParser, (req, res) => {
                 };
                 // Renew token
                 token = jwt.sign(data, "secret", {
-                  expiresIn: 60 * 10
+                  expiresIn: 60 * 30
                 });
 
                 res.statusMessage = "Wishlista creada exitosamente";
@@ -543,7 +554,7 @@ app.put('/:username/updateWishlist', jsonParser, (req, res) => {
 
             // Renew token
             token = jwt.sign(data, "secret", {
-              expiresIn: 60 * 10
+              expiresIn: 60 * 30
             });
 
             res.statusMessage = "Wishlista creada exitosamente";
@@ -598,19 +609,26 @@ app.delete('/:username/deleteWishlist/:wishlist', (req, res) => {
       // Deletes wishlist
       WishlistList.delete(user._id, wishlist)
       .then(result => {
+        // Wishlist no encontrada
+        if(result.deletedCount < 1) {
+          res.statusMessage = "Wishlista no encontrada"
+          return res.status(401).send();
+        }
+
+        // Wishlist encontrada
         let data = {
           username
         };
 
         // Renew token
         let token = jwt.sign(data, "secret", {
-          expiresIn: 60 * 10
+          expiresIn: 60 * 30
         });
-
+        res.statusMessage = "Wishlista borrada exitosamente";
         return res.status(200).json({ result, token });
       })
       .catch(error => {
-        res.statusMessage = "Wishlista no encontrada";
+        res.statusMessage = "Hubo un error de conexión con la BD.";
         return res.status(401).send();
       });
     })
@@ -701,7 +719,7 @@ app.post('/:username/:wishlist/createWish', jsonParser, (req, res) => {
                 ItemList.getAllByWishlist(wishlist._id)
                   .then(wishes => {
                     // Validate if number of wishes is exceeded
-                    if (wishes.length >= 10) {
+                    if (wishes.length >= 30) {
                       res.statusMessage = "Número de wishes excedido";
                       return res.status(409).send();
                     }
@@ -727,7 +745,7 @@ app.post('/:username/:wishlist/createWish', jsonParser, (req, res) => {
                           username
                         };
                         let token = jwt.sign(data, "secret", {
-                          expiresIn: 60 * 10
+                          expiresIn: 60 * 30
                         });
 
                         res.statusMessage = "Wish agregado exitosamente a Wishlista";
@@ -768,11 +786,68 @@ app.post('/:username/:wishlist/createWish', jsonParser, (req, res) => {
 ///////////////////////////
 /////   DELETE WISH   /////
 ///////////////////////////
-app.delete('/:username/:wishlist/:wish/delete', jsonParser, (req, res) => {
+app.delete('/:username/:wishlist/:item/delete', jsonParser, (req, res) => {
+    // Store token
+    let token = req.headers.authorization;
+    token = token.replace("Bearer ", "");
+    // Validate token
+    jwt.verify(token, "secret", (err, user) => {
+      // Token not valid
+      if (err) {
+        res.statusMessage = "Token no válido";
+        return res.status(401).send();
+      }
+      // Token valid
+      let {username, wishlist, item} = req.params;
+      // Validate user
+      if (username != user.username) {
+        res.statusMessage = "El usuario de la sesión activa no coincide";
+        return res.status(400).send();
+      }
+
+      // Find user from username
+      UserList.getUserByUsername(username)
+      .then( user => {
+        // Find wishlist by title
+        WishlistList.getWishlistByTitle(wishlist, user._id)
+        .then( wishlist => {
+          // Delete item from wishlist
+          ItemList.delete(wishlist._id, item)
+          .then( deletedWish => {
+            console.log(wishlist._id)
+            if(deletedWish.deletedCount < 1){
+              res.statusMessage = "Wish no encontrado";
+              return res.status(401).send();
+            }
+              // Update token
+              let data = {
+                username
+              };
+      
+              // Renew token
+              let token = jwt.sign(data, "secret", {
+                expiresIn: 60 * 30
+              });
+
+              res.statusMessage = "Wish borrado exitosamente";
+              return res.status(200).json({deletedWish, token});
+          })
+          .catch( error => {
+            res.statusMessage = "Hubo un error de conexión con la BD"
+          });
+        })
+        .catch( error => {
+          res.statusMessage = "La wishlista no existe";
+          return res.status(401).send();
+        });
+      })
+      .catch( error => {
+        res.statusMessage = "Hubo un erro de conexión con la BD";
+        return res.status(500).send();
+      });
+    });
+  });
   
-});
-
-
 ////////////////////// ENDPOINTS END //////////////////////
 
 /* Server & Database config */

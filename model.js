@@ -61,12 +61,12 @@ let wishlistCollection = mongoose.Schema({
         default: Date.now,
         required: true
     },
-    wishes: [ 
-        {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Item"
-        }
-     ]
+    // wishes: [ 
+    //     {
+    //         type: mongoose.Schema.Types.ObjectId,
+    //         ref: "Item"
+    //     }
+    //  ]
 });
 
 let userCollection = mongoose.Schema({
@@ -102,12 +102,12 @@ let userCollection = mongoose.Schema({
         default: Date.now,
         required: true
     },
-    wishlists: [ 
-        {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Wishlist'
-        }
-     ],
+    // wishlists: [ 
+    //     {
+    //         type: mongoose.Schema.Types.ObjectId,
+    //         ref: 'Wishlist'
+    //     }
+    //  ],
     friends: [
         {
             user: {
@@ -162,7 +162,7 @@ let UserList = {
         });
     },
     delete: function( username ){
-        return User.findOneAndDelete( {username: username})
+        return User.deleteOne( {username: username})
             .then( deletedUsr => {
                 return deletedUsr;
             })
@@ -223,11 +223,7 @@ let WishlistList = {
     delete: function(author, title) {
         return Wishlist.deleteOne({author: author, title: title})
         .then(delWishlist => {
-            if(delWishlist.n){
-                return delWishlist;
-            }
-            throw Error('Wishlista no encontrada');
-            
+            return delWishlist;
         })
         .catch( error => {
             throw Error(error);
@@ -249,13 +245,13 @@ let WishlistList = {
 
 let ItemList = {
     getAll: function() {
-        Item.find()
+        return Item.find()
         .then( wishes => {
             return wishes;
         })
         .catch( error => {
             throw Error(error);
-        })
+        });
     },
     create: function(newItem){
         return Item.create(newItem)
@@ -277,7 +273,7 @@ let ItemList = {
         });
     },
     delete: function(wishlist, wishName) {
-        return Wishlist.findOneAndDelete({wishlist: wishlist, wishName: wishName})
+        return Item.deleteOne({wishName: wishName, wishlist: wishlist})
         .then(deletedItem => {
             return deletedItem;
         })
