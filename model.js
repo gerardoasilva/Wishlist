@@ -26,12 +26,10 @@ let itemCollection = mongoose.Schema({
     isReserved: {
         type: Boolean,
         default: "false",
-        required: true
     },
     creationDate: {
         type: Date,
         default: Date.now,
-        required: true
     }
 });
 
@@ -143,15 +141,6 @@ let UserList = {
             throw Error(error);
         });
     },
-    findByUsername : function( userN ){
-        return User.findOne({username: userN})
-            .then( user => {
-                return user;
-            })
-            .catch ( error => {
-                return Error ( error );
-            });
-    },
     findByEmail : function( userEmail ){
         return User.findOne({email: userEmail})
             .then( user => {
@@ -193,10 +182,7 @@ let UserList = {
     getUserByUsername : function( username ){
         return User.findOne( {username: username} )
         .then( user => {
-            if( user ){
-                return user;
-            }
-            throw new Error('User not found');
+            return user;
         })
         .catch(error => {  
             throw Error(error);
@@ -235,22 +221,26 @@ let WishlistList = {
         });
     },
     delete: function(author, title) {
-        return Wishlist.findOneAndDelete({author: author, title: title})
-        .then(deletedWishlist => {
-            return deletedWishlist;
+        return Wishlist.deleteOne({author: author, title: title})
+        .then(delWishlist => {
+            if(delWishlist.n){
+                return delWishlist;
+            }
+            throw Error('Wishlista no encontrada');
+            
         })
         .catch( error => {
             throw Error(error);
         });
     },
     getWishlistByTitle : function( title, author ){
-        return User.findOne( {title: title, author: author} )
+        return Wishlist.findOne( {title: title, author: author} )
         .then( wishlist => {
-            if( wishlist ){
-                return wishlist;
-            }
-            throw new Error('Wishlista no encontrada');
+            return wishlist;
         })
+        .catch( error => {
+            throw Error(error);
+        });
     },
     updateWishlist: function(newWishlist){
         return Wishlist.update()
